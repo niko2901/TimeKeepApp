@@ -1,0 +1,27 @@
+﻿@using TimeKeepApp.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+@if (showDeleteModal)
+{
+    <div style="position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1040;"></div>
+    <div class="delete-employee-modal card position-fixed top-50 start-50 translate-middle rounded-2">
+        <h5 class="card-header">Delete Employee?</h5>
+        <div class="card-body">
+            <h5 class="card-title">Warning: Permanent Action</h5>
+            <p class="card-text">You are about to delete @EmployeeDeleteName</p>
+            <p class="card-text">This will also clear all linked time clock logs. </p>
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-outline-secondary" @onclick="OnCancel">Cancel</button>
+                <button class="btn btn-danger" @onclick="OnSave">Confirm</button>
+            </div>
+
+        </div>
+    </div>
+}
+@code {
+
+    [Parameter] public bool showDeleteModal { get; set; }
+    [Parameter] public String? EmployeeDeleteName { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; } 
+}

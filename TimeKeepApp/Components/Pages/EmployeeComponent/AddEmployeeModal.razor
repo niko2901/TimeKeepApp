@@ -1,0 +1,77 @@
+﻿@using TimeKeepApp.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+@if(showModal)
+{
+    @* Add Employee Modal *@
+    <div style="position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1040;"></div> @* Modal Backdrop *@
+
+    @* Main Modal *@
+    <div class="add-employee-modal card position-fixed top-50 start-50 translate-middle rounded-2">
+
+        <div class="card-header p-4">
+            <h4>Add New Hired Employee</h4>
+        </div>
+
+        <div class="card-body pb-3 px-4">
+            <EditForm Model="Model" OnValidSubmit="HandleSave">
+                <DataAnnotationsValidator />
+
+                <div class="input-group mb-3">
+                    <div class="d-flex flex-column w-100">
+                        <label>First Name:</label>
+                        <input class="form-control w-100 rounded-2" @bind-value="Model.FirstName" />
+                        <ValidationMessage For="@(() => Model.FirstName)" />
+                    </div>
+
+                    <div class="d-flex flex-column w-100 ">
+                        <label>Last Name:</label>
+                        <input class="form-control w-100 rounded-2" @bind-value="Model.LastName" />
+                        <ValidationMessage For="@(() => Model.LastName)" />
+                    </div>
+
+                    <div class="d-flex flex-column w-100 ">
+                        <label>Gender:</label>
+                        <div class="d-flex align-items-center gap-5 px-3" style="height:38px;">
+                            <InputRadioGroup @bind-Value="Model.Gender">
+                                <div>
+                                    <InputRadio class="form-check-input" id="male" Value='"Male"' />
+                                    <label class="form-check-label" for="male">Male</label>
+                                </div>
+                                <div>
+                                    <InputRadio class="form-check-input" id="female" Value='"Female"' />
+                                    <label class="form-check-label" for="female">Female</label>
+                                </div>
+                            </InputRadioGroup>
+                        </div>
+                        <ValidationMessage For="@(() => Model.Gender)" />
+                    </div>
+                    <div>
+                        <label>Date Hired:</label>
+                        <input type="date" class="form-control w-100 rounded-2" @bind-value="Model.DateHired" />
+                        <ValidationMessage For="@(() => Model.DateHired)" />
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary" @onclick="OnCancel">Cancel</button>
+                    <button type="submit" class="btn btn-success"><span class="bi bi-check"></span>Save</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}   
+
+@code {
+    [Parameter] public bool showModal { get; set; }
+    [Parameter]
+    public Employee Model { get; set; } = new Employee
+    {
+        FirstName = string.Empty,
+        LastName = string.Empty,
+        Gender = string.Empty
+    };
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task HandleSave() => await OnSave.InvokeAsync();
+}

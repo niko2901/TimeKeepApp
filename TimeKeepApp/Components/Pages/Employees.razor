@@ -1,0 +1,263 @@
+﻿@page "/employees"
+
+@using TimeKeepApp.Services
+@using Microsoft.EntityFrameworkCore
+@using TimeKeepApp.Models
+@using TimeKeepApp.Components.Pages.EmployeeComponent
+
+@inject AppState State;
+@inject TimeKeepAppContext Db
+
+@rendermode InteractiveServer
+
+<PageTitle>Employees</PageTitle>
+
+<div class="d-flex justify-content-between w-100 mb-4">
+
+    @* Register Employee Modal Button *@
+    <button type="button" class="btn btn-outline-secondary" @onclick="OpenAddModal">
+        Register New Employee
+    </button>
+
+    @* Employee Search *@
+    <div class="w-25">
+        <input type="text" class="form-control" value="@searchText" @oninput="OnSearchInput" placeholder="Search employee..." />
+        @if(suggestions.Any())
+        {
+            <div class="list-group position-absolute w-auto">
+                @foreach (var e in suggestions)
+                {
+                    <button type="button" class="list-group-item list-group-item-action" @onclick="() => SelectEmployee(e)">
+                        @e.FirstName @e.LastName
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@* handle the modal for adding employee *@
+<AddEmployeeModal showModal="showModal"
+                  Model="newEmployee"
+                  OnSave="AddEmployee"
+                  OnCancel="CloseAddModal"/>
+
+@* handles the modal for deleting employees *@
+<DeleteEmployeeModal showDeleteModal="showDeleteModal"
+                     EmployeeDeleteName="@EmployeeDeleteName"
+                     OnSave="ConfirmDeleteEmployee"
+                     OnCancel="CloseDeleteModal"/>
+
+@* handles the modal for editing existing employees *@
+<EditEmployeeModal showEditModal="showEditModal"
+                   Model="editEmployee"
+                   OnSave="UpdateEmployee"
+                   OnCancel="CloseEditModal"/>
+
+@* Employees List Records *@
+<div class="card h-100">
+    <div class="card-header">
+        <h5 class="text-center">List of Employees</h5>
+    </div>
+    <div class="card-body">
+        @if(employees.Count == 0)
+        {
+            <div class="d-flex align-items-center justify-content-center h-100">
+                <p class="  ">No Recorded Employees.</p>
+            </div>
+        }
+        else
+        {
+            <div class="scroll-bar w-100" >
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">FirstName</th>
+                            <th scope="col">Lastname</th>
+                            <th scope="col">Gender</th>
+                            <th scope="col">Date Hired</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-group-divider overflow-scroll ">
+                        @foreach (var e in filteredEmployee)
+                        {
+                            <tr>
+                                <td>@e.FirstName</td>
+                                <td>@e.LastName</td>
+                                <td>@e.Gender</td>
+                                <td>@e.DateHired?.ToString("MMMM dd, yyyy")</td>
+                                <td class=" ">
+                                    <button class="btn btn-primary" @onclick="() => OpenEditModal(e)">Edit</button>
+                                    <button class="btn btn-danger" @onclick="() => OpenDeleteModal(e)">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized() => State.CurrentPage = "Employee Management";
+
+    private bool showModal = false;
+    private bool showDeleteModal = false;
+    private bool showEditModal = false;
+
+    private int? EmployeeDeleteId = null;
+    private string EmployeeDeleteName = string.Empty;
+    private string searchText = string.Empty;
+
+    private List<Employee> employees = new();
+    private List<Employee> filteredEmployee = new();
+    private List<Employee> suggestions = new();
+    private Employee editEmployee = new()
+    {
+        FirstName = string.Empty,
+        LastName = string.Empty,
+        Gender = string.Empty,
+        DateHired = null
+    };
+
+    private Employee newEmployee = new()
+    {
+        FirstName = string.Empty,
+        LastName = string.Empty,
+        Gender = string.Empty,
+        DateHired = null
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployees();
+    }
+
+    private async Task LoadEmployees()
+    {
+        employees = await Db.Employee.OrderBy(e => e.EmployeeId).Take(100).ToListAsync();
+
+        filteredEmployee = employees;
+    }
+
+    private void OpenAddModal() => showModal = true;
+    private void CloseAddModal() => showModal = false;
+
+    private void OpenEditModal(Employee e) 
+    {
+        editEmployee = new Employee
+        {
+            EmployeeId = e.EmployeeId,
+            FirstName = e.FirstName,
+            LastName = e.LastName,
+            Gender = e.Gender,
+            DateHired = e.DateHired
+        };
+
+        showEditModal = true;
+    }
+
+    private void CloseEditModal() => showEditModal = false;
+
+    private void OpenDeleteModal(Employee e)
+    {
+        EmployeeDeleteId = e.EmployeeId;
+        EmployeeDeleteName = $"{e.FirstName} {e.LastName}";
+        showDeleteModal = true;
+    }
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        EmployeeDeleteId = null;
+        EmployeeDeleteName = string.Empty;
+    }
+
+    private async Task AddEmployee()
+    {
+        newEmployee.DateHired = newEmployee.DateHired?.Date;
+
+        Db.Employee.Add(newEmployee);
+        await Db.SaveChangesAsync();
+
+        newEmployee = new Employee
+        {
+            FirstName = string.Empty,
+            LastName = string.Empty,
+            Gender = string.Empty
+        };
+
+        showModal = false;
+        await LoadEmployees();
+    }
+
+    private async Task ConfirmDeleteEmployee()
+    {
+        if (EmployeeDeleteId is null) return;
+
+        var employee = await Db.Employee.FindAsync(EmployeeDeleteId.Value);
+        if (employee is not null)
+        {
+            Db.Employee.Remove(employee);
+            await Db.SaveChangesAsync();
+        }
+
+        await LoadEmployees();
+        CloseDeleteModal();
+    }
+
+    private async Task UpdateEmployee()
+    {
+        var existing = await Db.Employee.FindAsync(editEmployee.EmployeeId);
+        if (existing is null ) return;
+
+        existing.FirstName = editEmployee.FirstName;
+        existing.LastName = editEmployee.LastName;
+        existing.Gender = editEmployee.Gender;
+        existing.DateHired = editEmployee.DateHired?.Date;
+
+        await Db.SaveChangesAsync();
+        showEditModal = false;
+        await LoadEmployees();
+    }
+
+    private void ApplySearch()
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            filteredEmployee = employees;
+            return;
+        }
+
+        filteredEmployee = employees
+            .Where(e => $"{e.FirstName} {e.LastName}"
+                .Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+    }
+
+    private void SelectEmployee(Employee e)
+    {
+        searchText = $"{e.FirstName} {e.LastName}";
+        suggestions.Clear();
+        ApplySearch();
+    }
+
+    private async void OnSearchInput(ChangeEventArgs e)
+    {
+        searchText = e.Value?.ToString() ?? "";
+        ApplySearch();
+
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            suggestions.Clear();
+            await LoadEmployees();
+            return;
+        }
+
+        suggestions = employees.Where(x => ($"{x.FirstName} {x.LastName}").
+                                Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                                .Take(5).ToList();
+    }
+}

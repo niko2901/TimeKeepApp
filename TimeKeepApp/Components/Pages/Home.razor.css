@@ -1,0 +1,21 @@
+﻿h5 {
+    margin: 0;
+}
+
+.card-header {
+    padding: 18px;
+}
+
+.dropbox {
+    z-index: 100;
+}
+
+.scroll-bar {
+    height: 590px;
+    overflow-y: auto;
+/*    border: 1px solid black;*/
+}
+
+td, th {
+    vertical-align: middle;
+}

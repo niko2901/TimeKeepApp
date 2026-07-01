@@ -1,0 +1,24 @@
+﻿h4 {
+    margin: 0;
+}
+
+.input-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    align-items: center;
+    align-content: center;
+    gap: 16px;
+}
+
+.scroll-bar {
+    height: 650px;
+    overflow-y: auto;
+}
+
+td, th{
+    vertical-align: middle;
+}
+
+.list-group {
+    z-index: 1050;
+}

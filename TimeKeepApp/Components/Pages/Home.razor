@@ -1,0 +1,214 @@
+﻿@page "/"
+
+@using Microsoft.EntityFrameworkCore
+@using TimeKeepApp.Services
+@using TimeKeepApp.Models
+@using System.Timers
+
+@inject AppState State
+@inject TimeKeepAppContext Db
+
+@implements IDisposable
+
+@rendermode InteractiveServer
+
+<PageTitle>TimeHistory</PageTitle>
+<h1>Welcome Back!</h1>
+<p>Today is @currentTime</p>
+
+<div class="d-flex flex-row gap-5 h-100 align-items-center justify-content-center">
+	@* Punch Card  *@
+	<div class="card w-50">
+
+		@* Punch Card Header *@
+		<div class="card-header">
+			<h5 class="text-center">Quick Clock-in</h5>
+		</div>
+
+		<div class="d-flex flex-column card-body gap-3 px-4 pt-4 justify-content-around">
+
+			@* Forms *@
+			<EditForm Model="newTransaction" OnValidSubmit="HandleSave">
+				<DataAnnotationsValidator/>
+
+				@* Employee Search *@
+				<div class="input-group d-flex flex-column gap-2 mb-4">
+					<label class="form-label">Select Employee Name:</label>
+					<div>
+						<input class="form-control w-100 rounded-2" value="@searchText" @oninput="OnSearchInput" placeholder="Search Employee" />
+						@if (suggestions.Any())
+						{
+							<div class="list-group position-absolute w-100 dropbox">
+								@foreach (var item in suggestions)	
+								{
+									<button type="button" class="list-group-item list-group-item-action" @onclick="() => SelectEmployee(item)">
+										@item.FirstName @item.LastName
+									</button>
+								}
+							</div>
+						}
+					</div>
+					<ValidationMessage class="alert alert-danger" For="@(() => newTransaction.EmployeeId)" />
+				</div>
+
+				<div class="input-group d-flex flex-column gap-2 mb-3">
+
+					@* ClockIn or Clock Out *@
+					<label class="form-label" name="action">Action Type:</label>
+					<div class=" d-flex flex-row p-1 justify-content-around">
+						<InputRadioGroup @bind-Value="newTransaction.TransactionTypeId">
+							<div>
+								<InputRadio class="form-check-input" id="clockIn" Value=@((int)TransactionTypeEnum.ClockIn) />
+								<label class="form-check-label" for="clockIn">Clock-In</label>
+							</div>
+
+							<div>
+								<InputRadio class="form-check-input" id="clockOut" Value=@((int)TransactionTypeEnum.ClockOut) />
+								<label class="form-check-label" for="clockOut">Clock-Out</label>
+							</div>
+						</InputRadioGroup>
+					</div>
+					<ValidationMessage class="alert alert-danger" For="@(() => newTransaction.TransactionTypeId)" />
+				</div>
+
+				<div class="input-group d-flex flex-row w-100 justify-content-center">
+					<button type="submit" class="btn btn-outline-primary px-4 py-2" >Log Timestamp</button>
+				</div>
+			</EditForm>
+		</div>
+	</div>
+
+	@* Punch Activity History *@
+	<div class="card w-50 h-100">
+
+		<div class="card-header">
+			<h5 class="text-center">Recent Punch Activity</h5>
+		</div>
+
+		<div class="d-flex flex-column card-body p-4 overflow-x-auto">
+			<div class="scroll-bar w-100">
+				<table class="table">
+					<thead>
+						<tr>
+							<th>Employee</th>
+							<th>Status</th>
+							<th>Time</th>
+						</tr>
+					</thead>
+					<tbody class="table-group-divider overflow-scroll">
+						@foreach (var i in transactions)
+						{
+							<tr>
+								<td>@i.Employee?.LastName, @i.Employee?.FirstName</td>
+								<td>@i.TransactionType?.TransactionName</td>
+								<td>@i.TransactionDateTime.ToString("hh:mm tt")</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+</div>
+
+@code {
+	private List<Employee> employees = new();
+	private List<Employee> suggestions = new();
+	private List<TimekeepingTransaction> transactions = new();
+
+	private string currentTime = DateTime.Now.ToString("dddd, MMMM, yyyy, hh:mm:ss tt");
+	private string? searchText = string.Empty;
+
+	private Timer? timer;
+
+	private TimekeepingTransaction newTransaction = new()
+	{
+		EmployeeId = 0,
+		TransactionTypeId = 0,
+	};
+
+	protected override void OnInitialized()
+	{
+		State.CurrentPage = "Dashboard";
+		timer = new Timer(1000);
+		timer.Elapsed += OnTimerElapsed;
+		timer.AutoReset = true;
+		timer.Enabled = true;
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadEmployees();
+		await LoadTransactions();
+	}
+
+	private async Task LoadEmployees()
+	{
+		employees = await Db.Employee.OrderBy(e => e.EmployeeId).Take(100).ToListAsync();
+	}
+
+	private async Task LoadTransactions()
+	{
+		var today = DateTime.Today;
+		var tomorrow = today.AddDays(1);
+
+		transactions = await Db.TimekeepingTransaction
+			.Include(t => t.Employee)
+			.Include(t => t.TransactionType)
+			.Where(t => t.TransactionDateTime >= DateTime.Today && t.TransactionDateTime <= tomorrow)
+			.OrderByDescending(t => t.TransactionDateTime)
+			.ToListAsync();
+	}
+
+	private void OnTimerElapsed(object? sender, ElapsedEventArgs e)
+	{
+		currentTime = DateTime.Now.ToString("dddd, MMMM, yyyy, hh:mm:ss tt");
+		InvokeAsync(StateHasChanged);
+	}
+
+	public void Dispose()
+	{
+		timer?.Dispose();
+	}
+
+	private void SelectEmployee(Employee e)
+	{
+		newTransaction.EmployeeId = e.EmployeeId;
+		searchText = $"{e.FirstName} {e.LastName}";
+		suggestions.Clear();
+	}
+
+	private void OnSearchInput(ChangeEventArgs e)
+	{
+		searchText = e.Value?.ToString() ?? "";
+
+		if (string.IsNullOrWhiteSpace(searchText))
+		{
+			suggestions.Clear();
+			return;
+		}
+
+		suggestions = employees.Where(x => ($"{x.FirstName} {x.LastName}").
+								Contains(searchText, StringComparison.OrdinalIgnoreCase))
+								.Take(5).ToList();
+	}
+
+	private async Task HandleSave()
+	{
+		if (newTransaction.EmployeeId == 0) return;
+
+		Db.TimekeepingTransaction.Add(newTransaction);
+		await Db.SaveChangesAsync();
+
+		newTransaction = new TimekeepingTransaction
+		{
+			EmployeeId = 0,
+			TransactionTypeId = 2,
+		};
+
+		await LoadTransactions();
+		searchText = string.Empty;
+		suggestions.Clear();
+	}
+}

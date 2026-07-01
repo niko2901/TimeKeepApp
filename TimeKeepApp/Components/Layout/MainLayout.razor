@@ -1,0 +1,38 @@
+﻿@inherits LayoutComponentBase
+@using TimeKeepApp.Services
+@inject AppState State
+@implements IDisposable
+
+<div class="page vh-100 w-100">
+    <div class="d-flex min-vh-100 w-100">
+        <aside class="sidebar flex-shrink-0">
+            <NavMenu />
+        </aside>
+        <main class="d-flex flex-column w-100">
+            <div class="top-row px-5 border w-100">
+                <p class="breadcrumb-item">Home > @State.CurrentPage</p>
+            </div>
+            <article class="d-flex flex-column flex-grow-1 p-5">
+                @Body
+            </article>
+        </main>
+    </div>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        State.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        State.OnChange -= StateHasChanged;
+    }
+}

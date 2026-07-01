@@ -57,10 +57,12 @@ Follow these steps to run the project locally on your machine.
    
 2. Configure the Database Connection:
    Open appsettings.json and update the connection string to match your local SQL Server instance:
+     ```bash
      "ConnectionStrings": {
          "TimeKeepAppContext": "Server=YOUR_SERVER;Database=TimeKeepDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
      }
 
-3. Apply Database Migrations (If applicable):
+4. Apply Database Migrations (If applicable):
    Open the Package Manager Console in Visual Studio and run:
+     ```bash
      Update-Database

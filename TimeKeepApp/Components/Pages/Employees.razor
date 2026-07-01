@@ -114,6 +114,7 @@
     private List<Employee> employees = new();
     private List<Employee> filteredEmployee = new();
     private List<Employee> suggestions = new();
+
     private Employee editEmployee = new()
     {
         FirstName = string.Empty,
@@ -196,15 +197,29 @@
     {
         if (EmployeeDeleteId is null) return;
 
-        var employee = await Db.Employee.FindAsync(EmployeeDeleteId.Value);
-        if (employee is not null)
+        await using var trx = await Db.Database.BeginTransactionAsync();
+        try
         {
-            Db.Employee.Remove(employee);
-            await Db.SaveChangesAsync();
-        }
+            var id = EmployeeDeleteId.Value;
 
-        await LoadEmployees();
-        CloseDeleteModal();
+            await Db.TimekeepingTransaction
+                .Where(t => t.EmployeeId == id)
+                .ExecuteDeleteAsync();
+
+            var affected = await Db.Employee
+                .Where(e => e.EmployeeId == id)
+                .ExecuteDeleteAsync();
+
+            await trx.CommitAsync();
+
+            await LoadEmployees();
+            CloseDeleteModal();
+        }
+        catch (Exception ex)
+        {
+            await trx.RollbackAsync();  
+            throw;
+        }
     }
 
     private async Task UpdateEmployee()
